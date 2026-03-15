@@ -216,3 +216,41 @@
         let a = dx*dx + dy*dy, b = 2*(fx*dx + fy*dy), c_val = (fx*fx + fy*fy) - c.radius*c.radius;
         let disc = b*b - 4*a*c_val;
         if (disc >= 0) {
+            let t = (-b - Math.sqrt(disc)) / (2*a);
+            if (t > 0 && t < 1) return t * Math.sqrt(dx*dx + dy*dy);
+        }
+        return null;
+    }
+
+    // Мишка и контроли
+    canvas.addEventListener('mousedown', e => {
+        const mX = e.offsetX, mY = e.offsetY;
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - mX, m.y - mY) < 40) { m.isDragging = true; selectedMirror = m; }
+        });
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (selectedMirror) { selectedMirror.x = e.clientX - 260; selectedMirror.y = e.clientY; }
+    });
+
+    window.addEventListener('mouseup', () => { if (selectedMirror) selectedMirror.isDragging = false; selectedMirror = null; });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - e.offsetX, m.y - e.offsetY) < 50) m.angle += e.deltaY > 0 ? 5 : -5;
+        });
+    }, { passive: false });
+
+    function resetLevel() {
+        mirrors[0].x = 300; mirrors[0].y = 400; mirrors[0].angle = 45;
+        mirrors[1].x = 500; mirrors[1].y = 200; mirrors[1].angle = 160;
+        mirrors[2].x = 700; mirrors[2].y = 450; mirrors[2].angle = -30;
+    }
+
+    window.addEventListener('resize', init);
+    init();
+</script>
+</body>
+</html>
