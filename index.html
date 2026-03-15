@@ -2,37 +2,53 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <title>STEM Оптика: Сферични огледала</title>
+    <title>STEM Оптика: Конструктор</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #020617; color: white; margin: 0; overflow: hidden; display: flex; }
-        #toolbar { width: 260px; background: #0f172a; padding: 20px; border-right: 1px solid #1e293b; z-index: 10; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        #toolbar { width: 280px; background: #0f172a; padding: 20px; border-right: 1px solid #1e293b; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
         #canvas-container { flex: 1; position: relative; background: black; }
         canvas { display: block; }
-        .stat-box { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155; }
+        
+        .stat-box { background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155; }
         b { color: #fbbf24; }
-        .instruction { font-size: 12px; color: #94a3b8; line-height: 1.5; border-top: 1px solid #334155; pt: 10px; }
-        button { background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        .type-tag { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-left: 5px; text-transform: uppercase; }
+        
+        /* Бутони за инвентар */
+        .inventory-item { 
+            background: #1e293b; color: white; border: 1px solid #475569; 
+            padding: 12px; border-radius: 8px; cursor: pointer; text-align: left;
+            transition: 0.2s; display: flex; align-items: center; gap: 10px;
+        }
+        .inventory-item:hover { background: #334155; border-color: #3b82f6; }
+        .icon { width: 20px; height: 20px; border-radius: 2px; }
+
+        button.reset { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: auto; }
+        .instruction { font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div id="toolbar">
-    <h2>🔭 Оптика Лаб 2.0</h2>
+    <h2>🔭 Оптика Лаб</h2>
     <div class="stat-box">Статус: <b id="status">ИЗКЛЮЧЕНО</b></div>
     
-    <div style="font-size: 13px; margin-bottom: 10px; color: #94a3b8;">Легенда на огледалата:</div>
-    <div style="font-size: 12px; margin-bottom: 5px;">⬜ Плоско (стандартно)</div>
-    <div style="font-size: 12px; margin-bottom: 5px; color: #60a5fa;">🔵 Вдлъбнато (събирателно)</div>
-    <div style="font-size: 12px; margin-bottom: 15px; color: #f472b6;">🔴 Изпъкнало (разсейвателно)</div>
+    <p style="font-size: 14px; margin: 10px 0 5px;">Добави елементи:</p>
+    <div class="inventory-item" onclick="addMirror('flat')">
+        <div class="icon" style="background: white;"></div> Плоско огледало
+    </div>
+    <div class="inventory-item" onclick="addMirror('concave')">
+        <div class="icon" style="background: #60a5fa; border-radius: 50% 0 0 50%;"></div> Вдлъбнато
+    </div>
+    <div class="inventory-item" onclick="addMirror('convex')">
+        <div class="icon" style="background: #f472b6; border-radius: 0 50% 50% 0;"></div> Изпъкнало
+    </div>
 
-    <button onclick="resetLevel()">Нулирай позиция</button>
-    
-    <p class="instruction">
-        • <b>Влачи</b> огледалата за местене.<br>
-        • <b>Скролвай</b> върху тях за въртене.<br>
-        • Наблюдавай как <b>кривината</b> променя фокуса на светлината.
-    </p>
+    <div class="instruction">
+        • Кликни върху бутон, за да добавиш огледало.<br>
+        • <b>Влачи</b> за местене, <b>Скрол</b> за въртене.<br>
+        • Посочи огледало, за да видиш <b>осите и ъглите</b>.
+    </div>
+
+    <button class="reset" onclick="mirrors = []; target.active=false;">Изчисти сцената</button>
 </div>
 
 <div id="canvas-container">
@@ -40,217 +56,4 @@
 </div>
 
 <script>
-    const canvas = document.getElementById('opticsCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    let width, height;
-    let mirrors = [
-        { x: 300, y: 400, angle: 45, length: 80, type: 'flat', isDragging: false },
-        { x: 500, y: 200, angle: 160, length: 100, type: 'concave', curvature: 0.05, isDragging: false },
-        { x: 700, y: 450, angle: -30, length: 100, type: 'convex', curvature: 0.05, isDragging: false }
-    ];
-    
-    const source = { x: 50, y: height/2 || 300, angle: 0 };
-    const target = { x: 850, y: 300, radius: 30, active: false };
-    
-    let selectedMirror = null;
-
-    function init() {
-        width = window.innerWidth - 260;
-        height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        source.y = height / 2;
-        target.x = width - 100;
-        target.y = height / 2;
-        draw();
-    }
-
-    function draw() {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, width, height);
-
-        // Рисуване на Целта
-        if (target.active) {
-            // Ефект на сияние
-            let grd = ctx.createRadialGradient(target.x, target.y, 5, target.x, target.y, 80);
-            grd.addColorStop(0, 'rgba(251, 191, 36, 0.6)');
-            grd.addColorStop(1, 'transparent');
-            ctx.fillStyle = grd;
-            ctx.fillRect(target.x - 80, target.y - 80, 160, 160);
-        }
-
-        ctx.beginPath();
-        ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
-        ctx.fillStyle = target.active ? '#fbbf24' : '#422006';
-        ctx.fill();
-        ctx.strokeStyle = target.active ? '#fff' : '#fbbf24';
-        ctx.lineWidth = target.active ? 5 : 2;
-        ctx.stroke();
-
-        // Рисуване на огледалата
-        mirrors.forEach(m => {
-            ctx.save();
-            ctx.translate(m.x, m.y);
-            ctx.rotate(m.angle * Math.PI / 180);
-            
-            ctx.lineWidth = 4;
-            if (m.type === 'flat') ctx.strokeStyle = '#fff';
-            else if (m.type === 'concave') ctx.strokeStyle = '#60a5fa';
-            else ctx.strokeStyle = '#f472b6';
-
-            ctx.beginPath();
-            if (m.type === 'flat') {
-                ctx.moveTo(-m.length/2, 0);
-                ctx.lineTo(m.length/2, 0);
-            } else {
-                // Рисуване на дъга за сферични огледала
-                let sign = m.type === 'concave' ? 1 : -1;
-                ctx.arc(0, m.length * 1.5 * sign, m.length * 1.5, -Math.PI/2 - 0.4 * sign, -Math.PI/2 + 0.4 * sign);
-            }
-            ctx.stroke();
-            ctx.restore();
-        });
-
-        traceBeam();
-        requestAnimationFrame(draw);
-    }
-
-    function traceBeam() {
-        let currentX = source.x;
-        let currentY = source.y;
-        let currentAngle = source.angle;
-        target.active = false;
-
-        ctx.beginPath();
-        ctx.moveTo(currentX, currentY);
-        ctx.strokeStyle = '#60a5fa';
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#60a5fa';
-
-        for (let i = 0; i < 8; i++) {
-            let nextX = currentX + Math.cos(currentAngle * Math.PI / 180) * 2000;
-            let nextY = currentY + Math.sin(currentAngle * Math.PI / 180) * 2000;
-
-            let closestHit = null;
-            let minDist = Infinity;
-
-            mirrors.forEach(m => {
-                let hit = intersect(currentX, currentY, nextX, nextY, m);
-                if (hit && hit.dist < minDist) {
-                    minDist = hit.dist;
-                    closestHit = hit;
-                }
-            });
-
-            // Проверка за целта
-            let distToTarget = circleIntersect(currentX, currentY, nextX, nextY, target);
-            if (distToTarget !== null && distToTarget < minDist) {
-                ctx.lineTo(currentX + Math.cos(currentAngle * Math.PI / 180) * distToTarget, 
-                           currentY + Math.sin(currentAngle * Math.PI / 180) * distToTarget);
-                target.active = true;
-                break;
-            }
-
-            if (closestHit) {
-                ctx.lineTo(closestHit.x, closestHit.y);
-                currentX = closestHit.x;
-                currentY = closestHit.y;
-                
-                // Физика за сферично отражение: променяме ъгъла спрямо точката на допир върху дъгата
-                let normalAngle = closestHit.mirrorAngle;
-                if (closestHit.type !== 'flat') {
-                    // Изчисляваме локалния наклон в точката на удара
-                    let hitOffset = closestHit.hitOffset / (closestHit.length / 2); // от -1 до 1
-                    let curveEffect = closestHit.type === 'concave' ? -20 : 20;
-                    normalAngle += hitOffset * curveEffect;
-                }
-                
-                currentAngle = 2 * normalAngle - currentAngle;
-            } else {
-                ctx.lineTo(nextX, nextY);
-                break;
-            }
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        document.getElementById('status').innerText = target.active ? "ОСВЕТЕНА! ✨" : "ОПИТАЙ ПАК";
-        document.getElementById('status').style.color = target.active ? "#fbbf24" : "#ef4444";
-    }
-
-    function intersect(x1, y1, x2, y2, m) {
-        const angleRad = m.angle * Math.PI / 180;
-        const cosA = Math.cos(angleRad);
-        const sinA = Math.sin(angleRad);
-        
-        // Линейна апроксимация на огледалото за детекция на сблъсък
-        const x3 = m.x - cosA * m.length / 2;
-        const y3 = m.y - sinA * m.length / 2;
-        const x4 = m.x + cosA * m.length / 2;
-        const y4 = m.y + sinA * m.length / 2;
-
-        const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-        if (den === 0) return null;
-
-        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
-        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
-
-        if (t > 0 && t < 1 && u > 0 && u < 1) {
-            // Изчисляваме колко далеч от центъра на огледалото е удара
-            let hitX = x1 + t * (x2 - x1);
-            let hitY = y1 + t * (y2 - y1);
-            let hitOffset = Math.sqrt(Math.pow(hitX - m.x, 2) + Math.pow(hitY - m.y, 2));
-            // Проверка на коя страна е (ляво/дясно от центъра)
-            let dot = (hitX - m.x) * cosA + (hitY - m.y) * sinA;
-            if (dot < 0) hitOffset = -hitOffset;
-
-            return { x: hitX, y: hitY, dist: Math.sqrt(Math.pow(t * (x2-x1),2) + Math.pow(t * (y2-y1),2)), mirrorAngle: m.angle, type: m.type, length: m.length, hitOffset: hitOffset };
-        }
-        return null;
-    }
-
-    function circleIntersect(x1, y1, x2, y2, c) {
-        let dx = x2 - x1, dy = y2 - y1;
-        let fx = x1 - c.x, fy = y1 - c.y;
-        let a = dx*dx + dy*dy, b = 2*(fx*dx + fy*dy), c_val = (fx*fx + fy*fy) - c.radius*c.radius;
-        let disc = b*b - 4*a*c_val;
-        if (disc >= 0) {
-            let t = (-b - Math.sqrt(disc)) / (2*a);
-            if (t > 0 && t < 1) return t * Math.sqrt(dx*dx + dy*dy);
-        }
-        return null;
-    }
-
-    // Мишка и контроли
-    canvas.addEventListener('mousedown', e => {
-        const mX = e.offsetX, mY = e.offsetY;
-        mirrors.forEach(m => {
-            if (Math.hypot(m.x - mX, m.y - mY) < 40) { m.isDragging = true; selectedMirror = m; }
-        });
-    });
-
-    window.addEventListener('mousemove', e => {
-        if (selectedMirror) { selectedMirror.x = e.clientX - 260; selectedMirror.y = e.clientY; }
-    });
-
-    window.addEventListener('mouseup', () => { if (selectedMirror) selectedMirror.isDragging = false; selectedMirror = null; });
-
-    canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        mirrors.forEach(m => {
-            if (Math.hypot(m.x - e.offsetX, m.y - e.offsetY) < 50) m.angle += e.deltaY > 0 ? 5 : -5;
-        });
-    }, { passive: false });
-
-    function resetLevel() {
-        mirrors[0].x = 300; mirrors[0].y = 400; mirrors[0].angle = 45;
-        mirrors[1].x = 500; mirrors[1].y = 200; mirrors[1].angle = 160;
-        mirrors[2].x = 700; mirrors[2].y = 450; mirrors[2].angle = -30;
-    }
-
-    window.addEventListener('resize', init);
-    init();
-</script>
-</body>
-</html>
+    const canvas = document.getElementById('opt
