@@ -2,19 +2,27 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <title>STEM Оптика: Пълна Лаборатория</title>
+    <title>STEM Оптика: Пълна Лаборатория 2.3</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #020617; color: white; margin: 0; overflow: hidden; display: flex; height: 100vh; }
         #toolbar { width: 280px; background: #0f172a; padding: 20px; border-right: 1px solid #1e293b; z-index: 10; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; overflow-y: auto; }
         #canvas-container { flex: 1; position: relative; background: #000; }
         canvas { display: block; width: 100%; height: 100%; }
+        
         .stat-box { background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 5px; }
         b { color: #fbbf24; }
-        .inv-section { font-size: 13px; color: #94a3b8; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
-        .inventory-item { background: #1e293b; color: white; border: 1px solid #475569; padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; user-select: none; font-size: 14px; }
-        .inventory-item:hover { background: #334155; border-color: #3b82f6; }
+        
+        .inv-section { font-size: 11px; color: #64748b; margin-top: 10px; text-transform: uppercase; font-weight: bold; }
+        .inventory-item { 
+            background: #1e293b; color: white; border: 1px solid #475569; 
+            padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; gap: 10px; user-select: none; font-size: 14px;
+        }
+        .inventory-item:hover { background: #334155; border-color: #3b82f6; transform: translateX(4px); }
+        
         .toggle-btn { background: #334155; border: 1px solid #475569; color: white; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; font-weight: bold; }
         .toggle-btn.active { background: #3b82f6; border-color: #60a5fa; }
+        
         button.reset { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: auto; }
         .instruction { font-size: 11px; color: #94a3b8; line-height: 1.4; border-top: 1px solid #334155; padding-top: 8px; }
     </style>
@@ -26,21 +34,21 @@
     <div class="stat-box">Сензор: <b id="status">ИЗКЛЮЧЕН</b></div>
     <button id="beamToggle" class="toggle-btn" onclick="toggleBeam()">🔦 Режим: Сноп</button>
 
-    <div class="inv-section">Огледала (Отражение)</div>
+    <div class="inv-section">Огледала</div>
     <div class="inventory-item" onclick="addItem('flat', 'mirror')">⬜ Плоско</div>
     <div class="inventory-item" onclick="addItem('concave', 'mirror')">🔵 Вдлъбнато</div>
     <div class="inventory-item" onclick="addItem('convex', 'mirror')">🔴 Изпъкнало</div>
 
-    <div class="inv-section">Лещи (Пречупване)</div>
-    <div class="inventory-item" onclick="addItem('convex', 'lens')" style="border-color: #22d3ee;">🔍 Изпъкнала (Събирателна)</div>
-    <div class="inventory-item" onclick="addItem('concave', 'lens')" style="border-color: #22d3ee;">👓 Вдлъбната (Разсейваща)</div>
+    <div class="inv-section">Лещи</div>
+    <div class="inventory-item" onclick="addItem('convex', 'lens')" style="border-left: 4px solid #22d3ee;">🔍 Изпъкнала</div>
+    <div class="inventory-item" onclick="addItem('concave', 'lens')" style="border-left: 4px solid #22d3ee;">👓 Вдлъбната</div>
 
     <div class="instruction">
-        • Влачи <b>червения лазер</b>.<br>
-        • Хвани елемент за центъра, за да местиш.<br>
-        • <b>Скрол</b> за ротация.
+        • Влачи <b>червения лазер</b> за позиция.<br>
+        • Хвани елемент за <b>центъра</b> за местене.<br>
+        • <b>Скрол</b> върху елемент за въртене.
     </div>
-    <button class="reset" onclick="items = []; target.active=false;">Изчисти</button>
+    <button class="reset" onclick="items = []; target.active=false;">Изчисти сцената</button>
 </div>
 
 <div id="canvas-container">
@@ -77,172 +85,4 @@
     }
 
     function addItem(shape, type) {
-        items.push({ x: width/2, y: height/2, angle: 90, length: 100, shape, type, alpha: 0 });
-    }
-
-    function draw() {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, width, height);
-
-        // Рисуване на Целта
-        ctx.beginPath();
-        ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
-        ctx.fillStyle = target.active ? '#fbbf24' : '#422006';
-        ctx.fill();
-        ctx.strokeStyle = '#fbbf24';
-        ctx.stroke();
-
-        // Източник
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(source.x - 12, source.y - 15, 24, 30);
-
-        target.active = false;
-        if (isMultiBeam) {
-            for (let offset = -20; offset <= 20; offset += 10) traceRay(source.x + 10, source.y + offset, 0);
-        } else {
-            traceRay(source.x + 10, source.y, 0);
-        }
-
-        // Рисуване на Елементите
-        items.forEach(item => {
-            ctx.save();
-            ctx.translate(item.x, item.y);
-            ctx.rotate(item.angle * Math.PI / 180);
-            
-            if (item.type === 'mirror') {
-                ctx.lineWidth = 5;
-                ctx.strokeStyle = item.shape === 'flat' ? '#fff' : (item.shape === 'concave' ? '#60a5fa' : '#f472b6');
-            } else {
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = 'rgba(34, 211, 238, 0.8)';
-                ctx.fillStyle = 'rgba(34, 211, 238, 0.2)';
-            }
-
-            ctx.beginPath();
-            if (item.shape === 'flat') {
-                ctx.moveTo(-item.length/2, 0); ctx.lineTo(item.length/2, 0);
-            } else {
-                let s = item.shape === 'concave' ? 1 : -1;
-                ctx.arc(0, item.length * 1.5 * s, item.length * 1.5, -Math.PI/2 - 0.35 * s, -Math.PI/2 + 0.35 * s);
-            }
-            ctx.stroke();
-            if (item.type === 'lens') ctx.fill();
-
-            if (item === hoveredObj) {
-                ctx.rotate(-item.angle * Math.PI / 180);
-                ctx.fillStyle = "#94a3b8";
-                ctx.font = "12px Arial";
-                ctx.fillText(`α: ${Math.round(item.alpha)}°`, 20, -20);
-                // Показване на по-голяма зона за хващане
-                ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.strokeStyle="rgba(255,255,255,0.2)"; ctx.stroke();
-            }
-            ctx.restore();
-        });
-
-        document.getElementById('status').innerText = target.active ? "АКТИВЕН ✨" : "ОПИТАЙ ПАК";
-        document.getElementById('status').style.color = target.active ? "#fbbf24" : "#ef4444";
-        requestAnimationFrame(draw);
-    }
-
-    function traceRay(startX, startY, startAngle) {
-        let curX = startX, curY = startY, curA = startAngle;
-        ctx.beginPath();
-        ctx.moveTo(curX, curY);
-        ctx.strokeStyle = 'rgba(96, 165, 250, 0.7)';
-        ctx.lineWidth = 2;
-
-        for (let i = 0; i < 10; i++) {
-            let nX = curX + Math.cos(curA * Math.PI / 180) * 3000;
-            let nY = curY + Math.sin(curA * Math.PI / 180) * 3000;
-            let closest = null, minDist = Infinity;
-
-            items.forEach(item => {
-                let hit = intersect(curX, curY, nX, nY, item);
-                if (hit && hit.dist < minDist) { minDist = hit.dist; closest = hit; }
-            });
-
-            let tHit = circleIntersect(curX, curY, nX, nY, target);
-            if (tHit && tHit < minDist) {
-                ctx.lineTo(curX + Math.cos(curA * Math.PI / 180) * tHit, curY + Math.sin(curA * Math.PI / 180) * tHit);
-                target.active = true; break;
-            }
-
-            if (closest) {
-                ctx.lineTo(closest.x, closest.y);
-                curX = closest.x; curY = closest.y;
-                let normal = closest.mirrorAngle;
-                
-                if (closest.shape !== 'flat') {
-                    let offset = closest.hitOffset / (closest.length / 2);
-                    normal += offset * (closest.shape === 'concave' ? -22 : 22);
-                }
-                
-                closest.ref.alpha = Math.abs(normal - 90 - curA) % 180;
-                
-                if (closest.type === 'mirror') {
-                    curA = 2 * normal - curA;
-                } else {
-                    // Симулация на пречупване (Lens)
-                    let bend = (closest.shape === 'convex' ? 15 : -15) * (closest.hitOffset / (closest.length/2));
-                    curA += bend;
-                }
-            } else { ctx.lineTo(nX, nY); break; }
-        }
-        ctx.stroke();
-    }
-
-    function intersect(x1, y1, x2, y2, m) {
-        const rad = m.angle * Math.PI / 180;
-        const x3 = m.x - Math.cos(rad) * m.length/2, y3 = m.y - Math.sin(rad) * m.length/2;
-        const x4 = m.x + Math.cos(rad) * m.length/2, y4 = m.y + Math.sin(rad) * m.length/2;
-        const den = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-        if (den === 0) return null;
-        const t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4))/den;
-        const u = -((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3))/den;
-        if (t > 0.01 && t < 1 && u > 0 && u < 1) {
-            let hX = x1+t*(x2-x1), hY = y1+t*(y2-y1);
-            let off = Math.hypot(hX-m.x, hY-m.y);
-            if (((hX-m.x)*Math.cos(rad) + (hY-m.y)*Math.sin(rad)) < 0) off = -off;
-            return { x: hX, y: hY, dist: Math.hypot(t*(x2-x1), t*(y2-y1)), mirrorAngle: m.angle, shape: m.shape, type: m.type, length: m.length, hitOffset: off, ref: m };
-        }
-        return null;
-    }
-
-    function circleIntersect(x1, y1, x2, y2, c) {
-        let dx = x2-x1, dy = y2-y1, fx = x1-c.x, fy = y1-c.y;
-        let a = dx*dx+dy*dy, b = 2*(fx*dx+fy*dy), cv = (fx*fx+fy*fy)-c.radius*c.radius;
-        let d = b*b-4*a*cv;
-        if (d >= 0) { let t = (-b-Math.sqrt(d))/(2*a); if (t > 0 && t < 1) return t*Math.sqrt(a); }
-        return null;
-    }
-
-    canvas.addEventListener('mousedown', e => {
-        const rect = canvas.getBoundingClientRect();
-        const mX = e.clientX - rect.left, mY = e.clientY - rect.top;
-        if (Math.hypot(source.x - mX, source.y - mY) < 35) { selectedObj = source; return; }
-        items.forEach(item => {
-            // Разширена зона за детекция (40px вместо 15px)
-            if (Math.hypot(item.x - mX, item.y - mY) < 45) { selectedObj = item; }
-        });
-    });
-
-    window.addEventListener('mousemove', e => {
-        const rect = canvas.getBoundingClientRect();
-        const mX = e.clientX - rect.left, mY = e.clientY - rect.top;
-        if (selectedObj === source) source.y = mY;
-        else if (selectedObj) { selectedObj.x = mX; selectedObj.y = mY; }
-        hoveredObj = null;
-        items.forEach(item => { if (Math.hypot(item.x - mX, item.y - mY) < 50) hoveredObj = item; });
-    });
-
-    window.addEventListener('mouseup', () => { selectedObj = null; });
-    canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        if (hoveredObj) hoveredObj.angle += e.deltaY > 0 ? 5 : -5;
-    }, { passive: false });
-
-    window.onload = init;
-    window.onresize = init;
-</script>
-</body>
-</html>
+        items.push({ x: width/2, y: height/2, angle: 90, length: 110, shape, type, alpha: 0 });
