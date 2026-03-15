@@ -2,36 +2,43 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <title>STEM Оптика: Конструктор</title>
+    <title>STEM Оптика: Конструктор 2.1</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #020617; color: white; margin: 0; overflow: hidden; display: flex; }
-        #toolbar { width: 280px; background: #0f172a; padding: 20px; border-right: 1px solid #1e293b; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
-        #canvas-container { flex: 1; position: relative; background: black; }
-        canvas { display: block; }
+        body { font-family: 'Segoe UI', sans-serif; background: #020617; color: white; margin: 0; overflow: hidden; display: flex; height: 100vh; }
+        
+        #toolbar { 
+            width: 280px; background: #0f172a; padding: 20px; 
+            border-right: 1px solid #1e293b; z-index: 10; 
+            display: flex; flex-direction: column; gap: 12px;
+            box-sizing: border-box;
+        }
+
+        #canvas-container { flex: 1; position: relative; background: #000; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; }
         
         .stat-box { background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155; }
         b { color: #fbbf24; }
         
-        /* Бутони за инвентар */
         .inventory-item { 
             background: #1e293b; color: white; border: 1px solid #475569; 
             padding: 12px; border-radius: 8px; cursor: pointer; text-align: left;
             transition: 0.2s; display: flex; align-items: center; gap: 10px;
+            user-select: none;
         }
-        .inventory-item:hover { background: #334155; border-color: #3b82f6; }
-        .icon { width: 20px; height: 20px; border-radius: 2px; }
+        .inventory-item:hover { background: #334155; border-color: #3b82f6; transform: translateX(5px); }
+        .icon { width: 18px; height: 18px; border: 1px solid #fff; }
 
-        button.reset { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: auto; }
-        .instruction { font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 10px; }
+        button.reset { background: #ef4444; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: auto; }
+        .instruction { font-size: 11px; color: #94a3b8; line-height: 1.4; border-top: 1px solid #334155; padding-top: 10px; }
     </style>
 </head>
 <body>
 
 <div id="toolbar">
-    <h2>🔭 Оптика Лаб</h2>
+    <h2 style="margin:0 0 10px 0;">🔭 Оптика Лаб</h2>
     <div class="stat-box">Статус: <b id="status">ИЗКЛЮЧЕНО</b></div>
     
-    <p style="font-size: 14px; margin: 10px 0 5px;">Добави елементи:</p>
+    <p style="font-size: 14px; margin: 10px 0 5px; color: #94a3b8;">Добави елементи:</p>
     <div class="inventory-item" onclick="addMirror('flat')">
         <div class="icon" style="background: white;"></div> Плоско огледало
     </div>
@@ -43,9 +50,9 @@
     </div>
 
     <div class="instruction">
-        • Кликни върху бутон, за да добавиш огледало.<br>
+        • <b>Кликни</b> върху бутон за ново огледало.<br>
         • <b>Влачи</b> за местене, <b>Скрол</b> за въртене.<br>
-        • Посочи огледало, за да видиш <b>осите и ъглите</b>.
+        • Целта е жълтият сензор вдясно.
     </div>
 
     <button class="reset" onclick="mirrors = []; target.active=false;">Изчисти сцената</button>
@@ -56,4 +63,213 @@
 </div>
 
 <script>
-    const canvas = document.getElementById('opt
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let mirrors = [];
+    let selectedMirror = null;
+    let hoveredMirror = null;
+
+    // Източник и Цел (позициите им ще се обновят в init)
+    const source = { x: 40, y: 0, angle: 0 };
+    const target = { x: 0, y: 0, radius: 25, active: false };
+
+    function init() {
+        // Нагласяне на реалния размер на Canvas спрямо контейнера
+        const container = document.getElementById('canvas-container');
+        width = container.clientWidth;
+        height = container.clientHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        // Позициониране на елементите спрямо новия размер
+        source.y = height / 2;
+        target.x = width - 60;
+        target.y = height / 2;
+        
+        draw();
+    }
+
+    function addMirror(type) {
+        // Добавя огледалото в центъра на екрана
+        mirrors.push({
+            x: width / 2,
+            y: height / 2,
+            angle: 90,
+            length: 100,
+            type: type,
+            isDragging: false
+        });
+    }
+
+    function draw() {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, width, height);
+
+        // Рисуване на Целта (сензора)
+        if (target.active) {
+            let grd = ctx.createRadialGradient(target.x, target.y, 5, target.x, target.y, 60);
+            grd.addColorStop(0, 'rgba(251, 191, 36, 0.6)');
+            grd.addColorStop(1, 'transparent');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, 60, 0, Math.PI*2);
+            ctx.fill();
+        }
+        
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+        ctx.fillStyle = target.active ? '#fbbf24' : '#422006';
+        ctx.fill();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Източник на светлина (лазер)
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(source.x - 10, source.y - 10, 20, 20);
+
+        // Рисуване на огледалата
+        mirrors.forEach(m => {
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.rotate(m.angle * Math.PI / 180);
+            
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = m.type === 'flat' ? '#fff' : (m.type === 'concave' ? '#60a5fa' : '#f472b6');
+            
+            ctx.beginPath();
+            if (m.type === 'flat') {
+                ctx.moveTo(-m.length/2, 0);
+                ctx.lineTo(m.length/2, 0);
+            } else {
+                let s = m.type === 'concave' ? 1 : -1;
+                ctx.arc(0, m.length * 1.5 * s, m.length * 1.5, -Math.PI/2 - 0.35 * s, -Math.PI/2 + 0.35 * s);
+            }
+            ctx.stroke();
+            
+            // Визуален индикатор за активност
+            if (m === hoveredMirror) {
+                ctx.strokeStyle = "rgba(255,255,255,0.3)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(0, -100); ctx.lineTo(0, 100);
+                ctx.stroke();
+            }
+            ctx.restore();
+        });
+
+        traceBeam();
+        requestAnimationFrame(draw);
+    }
+
+    function traceBeam() {
+        let curX = source.x, curY = source.y, curA = source.angle;
+        target.active = false;
+        
+        ctx.beginPath();
+        ctx.moveTo(curX, curY);
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#60a5fa';
+
+        for (let i = 0; i < 10; i++) {
+            let nX = curX + Math.cos(curA * Math.PI / 180) * 3000;
+            let nY = curY + Math.sin(curA * Math.PI / 180) * 3000;
+            
+            let closest = null, minDist = Infinity;
+
+            mirrors.forEach(m => {
+                let hit = intersect(curX, curY, nX, nY, m);
+                if (hit && hit.dist < minDist) { minDist = hit.dist; closest = hit; }
+            });
+
+            let tHit = circleIntersect(curX, curY, nX, nY, target);
+            if (tHit && tHit < minDist) {
+                ctx.lineTo(curX + Math.cos(curA * Math.PI / 180) * tHit, curY + Math.sin(curA * Math.PI / 180) * tHit);
+                target.active = true; break;
+            }
+
+            if (closest) {
+                ctx.lineTo(closest.x, closest.y);
+                curX = closest.x; curY = closest.y;
+                let normal = closest.mirrorAngle;
+                if (closest.type !== 'flat') {
+                    let offset = closest.hitOffset / (closest.length / 2);
+                    normal += offset * (closest.type === 'concave' ? -22 : 22);
+                }
+                curA = 2 * normal - curA;
+            } else { 
+                ctx.lineTo(nX, nY); break; 
+            }
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        
+        document.getElementById('status').innerText = target.active ? "АКТИВЕН ✨" : "НЕАКТИВЕН";
+        document.getElementById('status').style.color = target.active ? "#fbbf24" : "#ef4444";
+    }
+
+    // Математика на сблъсъците
+    function intersect(x1, y1, x2, y2, m) {
+        const rad = m.angle * Math.PI / 180;
+        const x3 = m.x - Math.cos(rad) * m.length/2, y3 = m.y - Math.sin(rad) * m.length/2;
+        const x4 = m.x + Math.cos(rad) * m.length/2, y4 = m.y + Math.sin(rad) * m.length/2;
+        const den = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+        if (den === 0) return null;
+        const t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4))/den;
+        const u = -((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3))/den;
+        if (t > 0 && t < 1 && u > 0 && u < 1) {
+            let hX = x1+t*(x2-x1), hY = y1+t*(y2-y1);
+            let off = Math.hypot(hX-m.x, hY-m.y);
+            if (((hX-m.x)*Math.cos(rad) + (hY-m.y)*Math.sin(rad)) < 0) off = -off;
+            return { x: hX, y: hY, dist: Math.hypot(t*(x2-x1), t*(y2-y1)), mirrorAngle: m.angle, type: m.type, length: m.length, hitOffset: off };
+        }
+        return null;
+    }
+
+    function circleIntersect(x1, y1, x2, y2, c) {
+        let dx = x2-x1, dy = y2-y1, fx = x1-c.x, fy = y1-c.y;
+        let a = dx*dx+dy*dy, b = 2*(fx*dx+fy*dy), cv = (fx*fx+fy*fy)-c.radius*c.radius;
+        let d = b*b-4*a*cv;
+        if (d >= 0) { let t = (-b-Math.sqrt(d))/(2*a); if (t > 0 && t < 1) return t*Math.sqrt(a); }
+        return null;
+    }
+
+    // Събития за мишката
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mX = e.clientX - rect.left, mY = e.clientY - rect.top;
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - mX, m.y - mY) < 50) { m.isDragging = true; selectedMirror = m; }
+        });
+    });
+
+    window.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mX = e.clientX - rect.left, mY = e.clientY - rect.top;
+        
+        if (selectedMirror) { selectedMirror.x = mX; selectedMirror.y = mY; }
+        
+        hoveredMirror = null;
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - mX, m.y - mY) < 60) hoveredMirror = m;
+        });
+    });
+
+    window.addEventListener('mouseup', () => { if (selectedMirror) selectedMirror.isDragging = false; selectedMirror = null; });
+    
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        if (hoveredMirror) hoveredMirror.angle += e.deltaY > 0 ? 5 : -5;
+    }, { passive: false });
+
+    // Стартиране и реоразмеряване
+    window.addEventListener('resize', init);
+    window.onload = init;
+</script>
+</body>
+</html>
