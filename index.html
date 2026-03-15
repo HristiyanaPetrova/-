@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>STEM Оптика: Дизайнер на светлинни ефекти</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #020617; color: white; margin: 0; overflow: hidden; display: flex; }
+        
+        /* Меню отстрани */
+        #toolbar { width: 250px; background: #0f172a; padding: 20px; border-right: 1px solid #1e293b; z-index: 10; }
+        
+        /* Работно поле */
+        #canvas-container { flex: 1; position: relative; cursor: crosshair; background: black; }
+        canvas { display: block; }
+
+        .instruction { font-size: 12px; color: #94a3b8; margin-top: 10px; line-height: 1.4; }
+        .stat-box { background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155; }
+        b { color: #fbbf24; }
+        
+        button { background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <h2>🕯️ Оптика Лаб</h2>
+    <div class="stat-box">
+        Цел: <b id="status">НЕОСВЕТЕНА</b>
+    </div>
+    <div class="stat-box">
+        Ъгъл на последно отражение: <b id="angle-display">0°</b>
+    </div>
+    
+    <p class="instruction">
+        • <b>Влачи</b> огледалата, за да ги местиш.<br>
+        • Използвай <b>колелцето на мишката</b> върху огледало, за да го въртиш.<br>
+        • Целта е лъчът да достигне до жълтия сензор.
+    </p>
+    
+    <button onclick="resetLevel()">Нулирай нивото</button>
+</div>
+
+<div id="canvas-container">
+    <canvas id="opticsCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let mirrors = [
+        { x: 300, y: 300, angle: 45, length: 80, isDragging: false },
+        { x: 500, y: 150, angle: -30, length: 80, isDragging: false }
+    ];
+    
+    const source = { x: 50, y: 50, angle: 0 };
+    const target = { x: 700, y: 500, radius: 25 };
+    
+    let selectedMirror = null;
+
+    function init() {
+        width = window.innerWidth - 250;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        draw();
+    }
+
+    // Физика на отражението
+    function draw() {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, width, height);
+
+        // 1. Рисуваме целта
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#422006';
+        ctx.fill();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 2. Рисуваме източника
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(source.x - 10, source.y - 10, 20, 20);
+
+        // 3. Рисуваме огледалата
+        mirrors.forEach(m => {
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.rotate(m.angle * Math.PI / 180);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(-m.length/2, 0);
+            ctx.lineTo(m.length/2, 0);
+            ctx.stroke();
+            // Отразяваща повърхност
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        // 4. Трасиране на светлинния лъч
+        traceBeam();
+        requestAnimationFrame(draw);
+    }
+
+    function traceBeam() {
+        let currentX = source.x;
+        let currentY = source.y;
+        let currentAngle = source.angle;
+        let hitTarget = false;
+
+        ctx.beginPath();
+        ctx.moveTo(currentX, currentY);
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#60a5fa';
+
+        for (let i = 0; i < 10; i++) { // До 10 отражения
+            let nextX = currentX + Math.cos(currentAngle * Math.PI / 180) * 2000;
+            let nextY = currentY + Math.sin(currentAngle * Math.PI / 180) * 2000;
+
+            let closestHit = null;
+            let minDist = Infinity;
+
+            mirrors.forEach(m => {
+                let hit = intersect(currentX, currentY, nextX, nextY, m);
+                if (hit && hit.dist < minDist) {
+                    minDist = hit.dist;
+                    closestHit = hit;
+                }
+            });
+
+            // Проверка за допир с целта
+            let targetHitDist = circleIntersect(currentX, currentY, nextX, nextY, target);
+            if (targetHitDist !== null && targetHitDist < minDist) {
+                ctx.lineTo(currentX + Math.cos(currentAngle * Math.PI / 180) * targetHitDist, 
+                           currentY + Math.sin(currentAngle * Math.PI / 180) * targetHitDist);
+                hitTarget = true;
+                break;
+            }
+
+            if (closestHit) {
+                ctx.lineTo(closestHit.x, closestHit.y);
+                currentX = closestHit.x;
+                currentY = closestHit.y;
+                // Закон за отражението: ъгъл на падане = ъгъл на отражение
+                currentAngle = 2 * closestHit.mirrorAngle - currentAngle;
+                document.getElementById('angle-display').innerText = Math.round(currentAngle) + "°";
+            } else {
+                ctx.lineTo(nextX, nextY);
+                break;
+            }
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        document.getElementById('status').innerText = hitTarget ? "ОСВЕТЕНА! ✨" : "НЕОСВЕТЕНА";
+        document.getElementById('status').style.color = hitTarget ? "#10b981" : "#ef4444";
+    }
+
+    // Математика за пресичане на линия и отсечка (огледало)
+    function intersect(x1, y1, x2, y2, m) {
+        const angleRad = m.angle * Math.PI / 180;
+        const x3 = m.x - Math.cos(angleRad) * m.length / 2;
+        const y3 = m.y - Math.sin(angleRad) * m.length / 2;
+        const x4 = m.x + Math.cos(angleRad) * m.length / 2;
+        const y4 = m.y + Math.sin(angleRad) * m.length / 2;
+
+        const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (den === 0) return null;
+
+        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+
+        if (t > 0 && t < 1 && u > 0 && u < 1) {
+            return {
+                x: x1 + t * (x2 - x1),
+                y: y1 + t * (y2 - y1),
+                dist: Math.sqrt(Math.pow(t * (x2 - x1), 2) + Math.pow(t * (y2 - y1), 2)),
+                mirrorAngle: m.angle
+            };
+        }
+        return null;
+    }
+
+    function circleIntersect(x1, y1, x2, y2, c) {
+        let dx = x2 - x1; let dy = y2 - y1;
+        let fx = x1 - c.x; let fy = y1 - c.y;
+        let a = dx*dx + dy*dy;
+        let b = 2*(fx*dx + fy*dy);
+        let c_val = (fx*fx + fy*fy) - c.radius*c.radius;
+        let discriminant = b*b - 4*a*c_val;
+        if (discriminant >= 0) {
+            let t = (-b - Math.sqrt(discriminant)) / (2*a);
+            if (t > 0) return t * Math.sqrt(dx*dx + dy*dy);
+        }
+        return null;
+    }
+
+    // Контроли
+    canvas.addEventListener('mousedown', e => {
+        const mouseX = e.offsetX; const mouseY = e.offsetY;
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - mouseX, m.y - mouseY) < 30) {
+                m.isDragging = true; selectedMirror = m;
+            }
+        });
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (selectedMirror && selectedMirror.isDragging) {
+            selectedMirror.x = e.clientX - 250;
+            selectedMirror.y = e.clientY;
+        }
+    });
+
+    window.addEventListener('mouseup', () => { if (selectedMirror) selectedMirror.isDragging = false; selectedMirror = null; });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const mouseX = e.offsetX; const mouseY = e.offsetY;
+        mirrors.forEach(m => {
+            if (Math.hypot(m.x - mouseX, m.y - mouseY) < 40) {
+                m.angle += e.deltaY > 0 ? 5 : -5;
+            }
+        });
+    }, { passive: false });
+
+    function resetLevel() {
+        mirrors[0].x = 300; mirrors[0].y = 300; mirrors[0].angle = 45;
+        mirrors[1].x = 500; mirrors[1].y = 150; mirrors[1].angle = -30;
+    }
+
+    window.addEventListener('resize', init);
+    init();
+</script>
+
+</body>
+</html>
